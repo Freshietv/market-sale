@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+const baseUrl = new URL(req.url).origin;
 
 export async function POST(req: Request) {
   try {
