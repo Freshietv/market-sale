@@ -1,13 +1,24 @@
+
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim();
 
 export async function POST(req: Request) {
   try {
+    if (!baseUrl || !/^https?:\/\/.+/i.test(baseUrl)) {
+      console.error("Invalid NEXT_PUBLIC_BASE_URL configuration");
+
+      return NextResponse.json(
+        { error: "Checkout configuration is invalid." },
+        { status: 500 }
+      );
+    }
+
     const { items } = await req.json();
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "Your cart is empty." },
         { status: 400 }
@@ -17,22 +28,19 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
 
-      line_items: items.map((item: any) => ({
+      line_items: items.map((item: { name: string; price: number }) => ({
         price_data: {
           currency: "usd",
           product_data: {
             name: item.name,
           },
-          unit_amount: Math.round(item.price * 100),
+          unit_amount: Math.round(Number(item.price) * 100),
         },
         quantity: 1,
       })),
 
-      success_url:
-        `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-
-      cancel_url:
-        `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/cancel`,
     });
 
     return NextResponse.json({
